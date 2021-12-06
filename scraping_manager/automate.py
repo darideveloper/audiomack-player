@@ -238,7 +238,10 @@ class Web_scraping ():
         End current instance of web browser
         """    
         
-        self.driver.close()
+        try:
+            self.driver.close()
+        except:
+            pass
     
     
     def __reload_browser (self): 
@@ -434,7 +437,6 @@ class Web_scraping ():
             # Save time out when is greader than 0
             if time_out > 0:  
                 self.driver.set_page_load_timeout(time_out)
-            
             self.driver.get(self.__web_page)
             
         # Catch error in load page
