@@ -1,12 +1,12 @@
 import os
 import csv
 import time
+import globals
+import threading
 from scraping_manager.automate import Web_scraping
 
-scraper = None
-
 # Initial values for proxy
-current_proxy = {
+globals.current_proxy = {
     "id": 0,
     "ip": "",
     "port": ""
@@ -16,16 +16,14 @@ current_proxy = {
 proxy_path = os.path.join (os.path.dirname(__file__), "proxy_list.csv")
 with open (proxy_path) as csv_file:
     csv_reader = csv.reader(csv_file)
-    proxy_list = list (csv_reader)
+    globals.proxy_list = list (csv_reader)
 
-def audiomack_validation ():
+def audiomack_validation (scraper):
     """Detect error loading the audiomack playlist
 
     Returns:
         bool: return True if there isn't an error
     """
-
-    global scraper
 
     # Check if the page correct loaded
     selector_sample = "nav.site-sidebar__widget.widget > ul > li:nth-child(1) > a"
@@ -41,16 +39,14 @@ def audiomack_validation ():
     else:
         return True
 
-def audiomack_play ():
+def audiomack_play (scraper, thread_num):
     """ Play the audiomack playlist and wait until it end
     """
 
-    global scraper
-
-    print ("Playing playlist...")
+    print (f"Thread: {thread_num} Playing playlist...")
     selector_play = 'button[aria-label="Play album"]'
     scraper.click (selector_play)
-    time.sleep (5)
+    time.sleep (20)
     scraper.refresh_selenium ()
 
     # Detect when playlist end
@@ -63,32 +59,30 @@ def audiomack_play ():
         else:
             break
     
-    print ("Playlist ended.")
+    print (f"Thread: {thread_num} Playlist ended.")
 
 def get_chrome ():
 
     # Get the next proxy from list
-    proxy_id = current_proxy["id"] + 1
-    current_proxy["id"] = proxy_id
-    current_proxy["ip"] = proxy_list[proxy_id][0]
-    current_proxy["port"] = proxy_list[proxy_id][1]
+    proxy_id = globals.current_proxy["id"] + 1
+    globals.current_proxy["id"] = proxy_id
+    globals.current_proxy["ip"] = globals.proxy_list[proxy_id][0]
+    globals.current_proxy["port"] = globals.proxy_list[proxy_id][1]
 
     scraper = Web_scraping(web_page="", 
                             headless=False, 
-                            proxy_server=current_proxy["ip"], 
-                            proxy_port=current_proxy["port"])
+                            proxy_server=globals.current_proxy["ip"], 
+                            proxy_port=globals.current_proxy["port"])
 
     return scraper
         
-def main ():
+def run_bot (thread_num):
     """Project flow: open videos and watch"""
-
-    global scraper
 
     link = "https://audiomack.com/dapoloman/album/ghetto-goblins-mixtape-volume-1"
 
     # Open page since found a valid proxy
-    while current_proxy["id"] < len (proxy_list):
+    while globals.current_proxy["id"] < len (globals.proxy_list):
 
         proxy_found = False
         try:
@@ -96,7 +90,7 @@ def main ():
             scraper = get_chrome()
 
             # Show current proxy
-            print (f'Proxy {current_proxy["id"]}, Address: {current_proxy["ip"]}:{current_proxy["port"]}')
+            print (f'Thread: {thread_num}, Proxy {globals.current_proxy["id"]}, Address: {globals.current_proxy["ip"]}:{globals.current_proxy["port"]}')
 
             # Try to open page and catch if error happend
             scraper.set_page (link, time_out=30)
@@ -108,9 +102,9 @@ def main ():
 
             # Detect internal error in the page and play video / audio
             if "audiomack" in link:
-                correct_load = audiomack_validation ()
+                correct_load = audiomack_validation (scraper)
                 if correct_load:
-                    audiomack_play ()
+                    audiomack_play (scraper, thread_num)
                     proxy_found = True
                     break
                 else:
@@ -119,15 +113,25 @@ def main ():
                     continue
     
     if not proxy_found: 
-        print ("No more proxies in file.")
-
-
-
-            
-
-
-
+        print (f"Thread: {thread_num} No more proxies in file.")
 
 
 if __name__ == '__main__':
-    main()
+
+    bots_num = 3
+
+    # Start all threads
+    thread_objs = []
+    for thread_num in range (1, bots_num + 1):
+
+        # Wait time between each thread
+        time.sleep (10)
+
+        # Start thread and save in list
+        thread_obj = threading.Thread (target=run_bot, args=(thread_num,))
+        thread_obj.start ()
+        thread_objs.append (thread_obj)
+
+    # Wait to end all threads
+    for thread_obj in thread_objs:
+        thread_obj.join ()
