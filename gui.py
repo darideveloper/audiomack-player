@@ -7,7 +7,7 @@ from threading import Thread
 
 CURRENT_FOLDER = os.path.dirname(__file__)
 
-def main (): 
+def gui (): 
     """Main function of the project with gui
     """
                 
@@ -108,7 +108,4 @@ def main ():
     
     # Reopen window after changes
     if reopen: 
-        main()
-
-if __name__ == "__main__":
-    main()
+        gui()
