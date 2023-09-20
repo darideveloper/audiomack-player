@@ -9,3 +9,5 @@ current_proxy = {
 }
 proxy_list = None
 running = True
+ended = False
+message = "Loading..."
