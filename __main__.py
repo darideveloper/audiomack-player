@@ -21,7 +21,7 @@ with open (proxy_path) as csv_file:
 def end_running ():
     """ Set global running status to False
     """
-
+    
     globals.running = False
 
 def audiomack_validation (scraper):
@@ -153,22 +153,24 @@ if __name__ == '__main__':
 
     bots_num = 3
     
-    # Sample killing thread
-    thread_obj = threading.Thread (target=end_running)
-    thread_obj.start ()
-
-    # Start all threads
-    thread_objs = []
-    for thread_num in range (1, bots_num + 1):
-
-        # Wait time between each thread
-        time.sleep (10)
-
-        # Start thread and save in list
-        thread_obj = threading.Thread (target=run_bot, args=(thread_num,))
+    while globals.running:
+        
+        # Sample killing thread
+        thread_obj = threading.Thread (target=end_running)
         thread_obj.start ()
-        thread_objs.append (thread_obj)
 
-    # Wait to end all threads
-    for thread_obj in thread_objs:
-        thread_obj.join ()
+        # Start all threads
+        thread_objs = []
+        for thread_num in range (1, bots_num + 1):
+
+            # Wait time between each thread
+            time.sleep (10)
+
+            # Start thread and save in list
+            thread_obj = threading.Thread (target=run_bot, args=(thread_num,))
+            thread_obj.start ()
+            thread_objs.append (thread_obj)
+
+        # Wait to end all threads
+        for thread_obj in thread_objs:
+            thread_obj.join ()
