@@ -1,5 +1,6 @@
 global current_proxy
 global proxy_list
+global running
 
 current_proxy = {
     "id": 0,
@@ -7,3 +8,4 @@ current_proxy = {
     "port": ""
 }
 proxy_list = None
+running = True

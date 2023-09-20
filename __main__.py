@@ -3,7 +3,7 @@ import csv
 import time
 import globals
 import threading
-from scraping_manager.automate import Web_scraping
+from scraping_manager.web_scraping import WebScraping # >>> MY MODULE UPDATED
 
 # Initial values for proxy
 globals.current_proxy = {
@@ -17,6 +17,12 @@ proxy_path = os.path.join (os.path.dirname(__file__), "proxy_list.csv")
 with open (proxy_path) as csv_file:
     csv_reader = csv.reader(csv_file)
     globals.proxy_list = list (csv_reader)
+    
+def end_running ():
+    """ Set global running status to False
+    """
+
+    globals.running = False
 
 def audiomack_validation (scraper):
     """Detect error loading the audiomack playlist
@@ -25,13 +31,15 @@ def audiomack_validation (scraper):
         bool: return True if there isn't an error
     """
 
-    # Check if the page correct loaded
-    selector_sample = "nav.site-sidebar__widget.widget > ul > li:nth-child(1) > a"
-    sample_text = scraper.get_text (selector_sample)
+    # Check if the page correct loadedç
+    # >>> SELECTOR UPDATED
+    selector_track = ".tracklist__track-wrap"
+    sample_text = scraper.get_text (selector_track)
     if not sample_text:
         return False
 
     # Internal 404 error
+    # >>> SELECTOR UPDATED
     selector_error = ".error-404__title"
     error = scraper.get_text (selector_error)
     if error == "404":
@@ -44,20 +52,40 @@ def audiomack_play (scraper, thread_num):
     """
 
     print (f"Thread: {thread_num} Playing playlist...")
-    selector_play = 'button[aria-label="Play album"]'
+    # >>> SELECTOR UPDATED
+    selector_play = "[class*='MusicActionButton']"
     scraper.click (selector_play)
     time.sleep (20)
     scraper.refresh_selenium ()
 
+    # >>> SELECTOR UPDATED
+    selector_playing_svg = "svg.tracklist__track-icon"
+    
     # Detect when playlist end
     while True:
-        selector_playing_svg = "svg.tracklist__track-icon"
-        svg_class = scraper.get_attrib (selector_playing_svg, "class")
-        if svg_class:
-            time.sleep (5)
-            continue
-        else:
+        
+        if not globals.running:
             break
+        
+        # >>> Check two times if is plaing
+        # >>> FIRST CHECK
+        svg_class_a = scraper.get_attrib (selector_playing_svg, "class")
+        if not svg_class_a:
+            
+            # WAIT BEFORE SECOND CHECK
+            time.sleep (5)
+            
+            # >>> SECOND CHECK
+            svg_class_b = scraper.get_attrib (selector_playing_svg, "class")
+        
+            # >>> END PLAYLIST
+            if not svg_class_b:
+                break
+        
+        # >>> WAIT BEFORE CHECK AGAIN
+        time.sleep (5)
+        continue
+                
     
     print (f"Thread: {thread_num} Playlist ended.")
 
@@ -69,10 +97,11 @@ def get_chrome ():
     globals.current_proxy["ip"] = globals.proxy_list[proxy_id][0]
     globals.current_proxy["port"] = globals.proxy_list[proxy_id][1]
 
-    scraper = Web_scraping(web_page="", 
-                            headless=False, 
-                            proxy_server=globals.current_proxy["ip"], 
-                            proxy_port=globals.current_proxy["port"])
+    scraper = WebScraping(
+        headless=False, 
+        proxy_server=globals.current_proxy["ip"], 
+        proxy_port=globals.current_proxy["port"]
+    )
 
     return scraper
         
@@ -93,8 +122,12 @@ def run_bot (thread_num):
             print (f'Thread: {thread_num}, Proxy {globals.current_proxy["id"]}, Address: {globals.current_proxy["ip"]}:{globals.current_proxy["port"]}')
 
             # Try to open page and catch if error happend
-            scraper.set_page (link, time_out=30)
-        except:
+            scraper.set_page (link, time_out=60)
+            
+        except Exception as e:
+            # >>> DEBUG WHEN THREAD / CHROME CRASH
+            print (f"Thread: {thread_num} Error: {e}")
+            
             # Try again
             scraper.end_browser()
             continue
@@ -119,6 +152,10 @@ def run_bot (thread_num):
 if __name__ == '__main__':
 
     bots_num = 3
+    
+    # Sample killing thread
+    thread_obj = threading.Thread (target=end_running)
+    thread_obj.start ()
 
     # Start all threads
     thread_objs = []
